@@ -10,7 +10,7 @@ text_messages_text = []
 send_text_messages_queue = []
 connection = telnetlib.Telnet()
 target_ip_addr = '192.168.1.2'
-target_port = '25639'
+target_port = 25639
 
 class Main(QObject):
 
@@ -47,7 +47,8 @@ class TelnetThread(QThread):
             clid = text[clid_pos+len('clid='):]
             if 'status=1' in text:
                 main.speakeron_event.emit(clients[clid])
-            elif 'status=0' in text:
+            # handle case where connection is established while someone is speaking
+            elif 'status=0' in text and clid in clients.keys():
                 main.speakeroff_event.emit(clients[clid])
 
         elif text.startswith('notifytextmessage '):
