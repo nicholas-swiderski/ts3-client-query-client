@@ -53,9 +53,9 @@ class TelnetThread(QThread):
 
         elif text.startswith('notifytextmessage '):
             message_pos = text.find('msg=')+len('msg=')
-            message = text[message_pos:text.find(' ',message_pos)]
+            message = text[message_pos:text.find(' ',message_pos)].replace('\s',' ')
             name_pos = text.find('invokername=')+len('invokername=')
-            name = text[name_pos:text.find(' ',name_pos)]
+            name = text[name_pos:text.find(' ',name_pos)].replace('\s',' ')
             main.text_event.emit(name + ': ' + message)
 
         elif text.startswith('notifycliententerview '):
@@ -82,20 +82,20 @@ class TelnetThread(QThread):
 
         try:
             connection.write("clientlist\n".encode('ascii'))
-        except OSError:
+        except (OSError,EOFError):
             reconnect()
             connection.write("clientlist\n".encode('ascii'))
 
         try:
             data = connection.read_until(b"\n\r").decode('ascii')
-        except OSError:
+        except (OSError,EOFError):
             reconnect()
             data = connection.read_until(b"\n\r").decode('ascii')
 
         while 'clid' not in data:
             try:
                 data = connection.read_until(b"\n\r").decode('ascii')
-            except OSError:
+            except (OSError,EOFError):
                 reconnect()
 
         for entry in data.split('|'):
@@ -107,14 +107,14 @@ class TelnetThread(QThread):
 
         try:
             connection.write("clientnotifyregister schandlerid=0 event=any\n".encode('ascii'))
-        except OSError:
+        except (OSError,EOFError):
             reconnect()
             connection.write("clientnotifyregister schandlerid=0 event=any\n".encode('ascii'))
 
         while not self.breakflag:
             try:
                 data = connection.read_until(b"\n\r").decode('ascii')
-            except OSError:
+            except (OSError,EOFError):
                 reconnect()
                 continue
             self.handle_data(data)
@@ -144,15 +144,20 @@ def text_message(text):
         ui.textBrowser_text_messages.insertPlainText(t)
 
 @pyqtSlot()
-def send_text_message():
-    text = ui.lineEdit.text()
+def send_text_message(text='',retry=0):
+    if retry > 1:
+        text_message("ERROR: cannot connect")
+        thread.breakflag = True
+        return
+    if text == '':
+        text = ui.lineEdit.text()
     ui.lineEdit.clear()
     send_text = 'sendtextmessage targetmode=2 msg=' + text.replace(' ','\s')
     try:
         connection.write((send_text + "\n").encode('ascii'))
-    except OSError:
+    except (OSError,EOFError):
         reconnect()
-        send_text_message(send_text)
+        send_text_message(send_text,1)
 
 
 @pyqtSlot(str,str)
