@@ -63,19 +63,18 @@ class TelnetThread(QThread):
 
             main.text_message_event.emit(name, message)
 
-        elif text.startswith('notifycliententerview '):
-            clid_pos = text.find('clid=')
-            clid = text[clid_pos+len('clid='):text.find(' ',clid_pos)]
-            client_nickname_pos = text.find('client_nickname=')
-            client_nickname = text[client_nickname_pos+len('client_nickname='):text.find(' ',client_nickname_pos)].replace('\s',' ')
-            main.add_client_event.emit(clid,client_nickname)
-            main.display_text_event.emit(client_nickname + ' has joined')
-
-        elif text.startswith('notifyclientleftview '):
-            clid_pos = text.find('clid=')
-            clid = text[clid_pos+len('clid='):]
-            print('CLID ',clid)
-            main.display_text_event.emit(clients[clid] + ' has left')
+        # elif text.startswith('notifycliententerview '):
+        #     clid_pos = text.find('clid=')
+        #     clid = text[clid_pos+len('clid='):text.find(' ',clid_pos)]
+        #     client_nickname_pos = text.find('client_nickname=')
+        #     client_nickname = text[client_nickname_pos+len('client_nickname='):text.find(' ',client_nickname_pos)].replace('\s',' ')
+        #     main.add_client_event.emit(clid,client_nickname)
+        #     main.display_text_event.emit(client_nickname + ' has joined')
+        #
+        # elif text.startswith('notifyclientleftview '):
+        #     clid_pos = text.find('clid=')
+        #     clid = text[clid_pos+len('clid='):]
+        #     main.display_text_event.emit(clients[clid] + ' has left')
 
     def run(self):
 
