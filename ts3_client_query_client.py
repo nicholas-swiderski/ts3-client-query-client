@@ -16,14 +16,16 @@ class Main(QObject):
 
     speakeron_event = pyqtSignal([str])
     speakeroff_event = pyqtSignal([str])
-    text_event = pyqtSignal([str,str])
+    display_text_event = pyqtSignal([str])
+    text_message_event = pyqtSignal([str,str])
     add_client_event = pyqtSignal([str,str])
 
     def main(self):
 
         self.speakeron_event.connect(append_speakers_text)
         self.speakeroff_event.connect(remove_speakers_text)
-        self.text_event.connect(text_message)
+        self.display_text_event.connect(display_message)
+        self.text_message_event.connect(text_message)
         self.add_client_event.connect(add_client)
 
         thread.start()
@@ -59,7 +61,7 @@ class TelnetThread(QThread):
             message_pos = text.find('msg=')+len('msg=')
             message = text[message_pos:text.find(' ',message_pos)].replace('\s',' ')
 
-            main.text_event.emit(name, message)
+            main.text_message_event.emit(name, message)
 
         elif text.startswith('notifycliententerview '):
             clid_pos = text.find('clid=')
@@ -67,20 +69,20 @@ class TelnetThread(QThread):
             client_nickname_pos = text.find('client_nickname=')
             client_nickname = text[client_nickname_pos+len('client_nickname='):text.find(' ',client_nickname_pos)].replace('\s',' ')
             main.add_client_event.emit(clid,client_nickname)
-            main.text_event.emit(client_nickname + ' has joined')
+            main.display_text_event.emit(client_nickname + ' has joined')
 
         elif text.startswith('notifyclientleftview '):
             clid_pos = text.find('clid=')
             clid = text[clid_pos+len('clid='):]
             print('CLID ',clid)
-            main.text_event.emit(clients[clid] + ' has left')
+            main.display_text_event.emit(clients[clid] + ' has left')
 
     def run(self):
 
         try:
             connection.open(target_ip_addr,target_port,10)
         except OSError:
-            main.text_event.emit("ERROR: cannot connect")
+            main.display_text_event.emit("ERROR: cannot connect")
             return
 
         try:
@@ -140,7 +142,11 @@ def remove_speakers_text(text):
             ui.textBrowser_speakers.insertPlainText(t)
 
 @pyqtSlot()
-def text_message(name,text):
+def display_message(text):
+    ui.textBrowser_text_messages.append(text)
+
+@pyqtSlot()
+def text_message(name, text):
     if '[URL]' in text and '[\/URL]' in text:
         while '[URL]' in text:
             tag_start_pos = text.find('[URL]')
@@ -148,12 +154,12 @@ def text_message(name,text):
             url = text[tag_start_pos+len('[URL]'):tag_end_pos].replace('\/','/')
             text = text[:tag_start_pos] + '<a href="' + url + '">' + url + '</a>' + text[tag_end_pos+len('[\/URL]'):]
 
-    ui.textBrowser_text_messages.append(name + ': ' + text)
+    display_message(name + ': ' + text)
 
 @pyqtSlot()
 def send_text_message(text='',retry=0):
     if retry > 1:
-        text_message("ERROR: cannot connect")
+        display_message("ERROR: cannot connect")
         thread.breakflag = True
         return
     if text == '':
@@ -176,7 +182,7 @@ def reconnect():
         connection.open(target_ip_addr,target_port,10)
         connection.write("clientnotifyregister schandlerid=0 event=any\n".encode('ascii'))
     except OSError:
-        text_message("ERROR: cannot connect")
+        display_message("ERROR: cannot connect")
         thread.breakflag = True
 
 if __name__ == '__main__':
