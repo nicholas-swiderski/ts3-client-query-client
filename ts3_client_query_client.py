@@ -60,6 +60,8 @@ class TelnetThread(QThread):
 
             message_pos = text.find('msg=')+len('msg=')
             message = text[message_pos:text.find(' ',message_pos)].replace('\s',' ')
+            #replace literal '\n' with newline
+            message = message.replace('\n', "\n")
 
             main.text_message_event.emit(name, message)
 
