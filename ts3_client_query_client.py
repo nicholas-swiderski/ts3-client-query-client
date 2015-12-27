@@ -16,7 +16,7 @@ class Main(QObject):
 
     speakeron_event = pyqtSignal([str])
     speakeroff_event = pyqtSignal([str])
-    text_event = pyqtSignal([str])
+    text_event = pyqtSignal([str,str])
     add_client_event = pyqtSignal([str,str])
 
     def main(self):
@@ -52,18 +52,21 @@ class TelnetThread(QThread):
                 main.speakeroff_event.emit(clients[clid])
 
         elif text.startswith('notifytextmessage '):
-            message_pos = text.find('msg=')+len('msg=')
-            message = text[message_pos:text.find(' ',message_pos)].replace('\s',' ')
+
             name_pos = text.find('invokername=')+len('invokername=')
             name = text[name_pos:text.find(' ',name_pos)].replace('\s',' ')
-            main.text_event.emit(name + ': ' + message)
+
+            message_pos = text.find('msg=')+len('msg=')
+            message = text[message_pos:text.find(' ',message_pos)].replace('\s',' ')
+
+            main.text_event.emit(name, message)
 
         elif text.startswith('notifycliententerview '):
             clid_pos = text.find('clid=')
             clid = text[clid_pos+len('clid='):text.find(' ',clid_pos)]
             client_nickname_pos = text.find('client_nickname=')
-            client_nickname = text[client_nickname_pos+len('client_nickname='):text.find(' ',client_nickname_pos)]
-            main.add_client_event.emit(clid,client_nickname.replace('\s',' '))
+            client_nickname = text[client_nickname_pos+len('client_nickname='):text.find(' ',client_nickname_pos)].replace('\s',' ')
+            main.add_client_event.emit(clid,client_nickname)
             main.text_event.emit(client_nickname + ' has joined')
 
         elif text.startswith('notifyclientleftview '):
@@ -137,11 +140,15 @@ def remove_speakers_text(text):
             ui.textBrowser_speakers.insertPlainText(t)
 
 @pyqtSlot()
-def text_message(text):
-    text_messages_text.append(text + "\n")
-    ui.textBrowser_text_messages.setPlainText('')
-    for t in text_messages_text:
-        ui.textBrowser_text_messages.insertPlainText(t)
+def text_message(name,text):
+    if '[URL]' in text and '[\/URL]' in text:
+        while '[URL]' in text:
+            tag_start_pos = text.find('[URL]')
+            tag_end_pos = text.find('[\/URL]')
+            url = text[tag_start_pos+len('[URL]'):tag_end_pos].replace('\/','/')
+            text = text[:tag_start_pos] + '<a href="' + url + '">' + url + '</a>' + text[tag_end_pos+len('[\/URL]'):]
+
+    ui.textBrowser_text_messages.append(name + ': ' + text)
 
 @pyqtSlot()
 def send_text_message(text='',retry=0):
@@ -179,6 +186,7 @@ if __name__ == '__main__':
     window = QMainWindow()
     ui = mainwindow.Ui_MainWindow()
     ui.setupUi(window)
+    ui.textBrowser_text_messages.setOpenExternalLinks(True)
 
     window.show()
     main = Main()
