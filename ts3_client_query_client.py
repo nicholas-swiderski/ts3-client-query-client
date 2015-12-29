@@ -7,7 +7,6 @@ import mainwindow
 clients = {}
 speakers_text = []
 text_messages_text = []
-send_text_messages_queue = []
 connection = telnetlib.Telnet()
 target_ip_addr = '192.168.1.2'
 target_port = 25639
@@ -18,7 +17,6 @@ class Main(QObject):
     speakeroff_event = pyqtSignal([str])
     display_text_event = pyqtSignal([str])
     text_message_event = pyqtSignal([str,str])
-    add_client_event = pyqtSignal([str,str])
 
     def main(self):
 
@@ -26,7 +24,6 @@ class Main(QObject):
         self.speakeroff_event.connect(remove_speakers_text)
         self.display_text_event.connect(display_message)
         self.text_message_event.connect(text_message)
-        self.add_client_event.connect(add_client)
 
         thread.start()
 
@@ -47,10 +44,14 @@ class TelnetThread(QThread):
         if text.startswith('notifytalkstatuschange '):
             clid_pos = text.find('clid=')
             clid = text[clid_pos+len('clid='):]
+
+            if clid not in clients.keys():
+                update_client_list()
+
             if 'status=1' in text:
                 main.speakeron_event.emit(clients[clid])
             # handle case where connection is established while someone is speaking
-            elif 'status=0' in text and clid in clients.keys():
+            elif 'status=0' in text:
                 main.speakeroff_event.emit(clients[clid])
 
         elif text.startswith('notifytextmessage '):
@@ -86,30 +87,7 @@ class TelnetThread(QThread):
             main.display_text_event.emit("ERROR: cannot connect")
             return
 
-        try:
-            connection.write("clientlist\n".encode('ascii'))
-        except (OSError,EOFError):
-            reconnect()
-            connection.write("clientlist\n".encode('ascii'))
-
-        try:
-            data = connection.read_until(b"\n\r").decode('ascii')
-        except (OSError,EOFError):
-            reconnect()
-            data = connection.read_until(b"\n\r").decode('ascii')
-
-        while 'clid' not in data:
-            try:
-                data = connection.read_until(b"\n\r").decode('ascii')
-            except (OSError,EOFError):
-                reconnect()
-
-        for entry in data.split('|'):
-            key = entry[5:entry.find(' ')]
-            name_pos = entry.find('client_nickname=')+len('client_nickname=')
-            name = entry[name_pos:entry.find(' ',name_pos)].replace('\s',' ')
-
-            clients[key] = name
+        update_client_list()
 
         try:
             connection.write("clientnotifyregister schandlerid=0 event=any\n".encode('ascii'))
@@ -173,10 +151,31 @@ def send_text_message(text='',retry=0):
         reconnect()
         send_text_message(send_text,1)
 
+def update_client_list():
+    try:
+        connection.write("clientlist\n".encode('ascii'))
+    except (OSError,EOFError):
+        reconnect()
+        connection.write("clientlist\n".encode('ascii'))
 
-@pyqtSlot(str,str)
-def add_client(clid,name):
-    clients[clid] = name
+    try:
+        data = connection.read_until(b"\n\r").decode('ascii')
+    except (OSError,EOFError):
+        reconnect()
+        data = connection.read_until(b"\n\r").decode('ascii')
+
+    while 'clid' not in data:
+        try:
+            data = connection.read_until(b"\n\r").decode('ascii')
+        except (OSError,EOFError):
+            reconnect()
+
+    for entry in data.split('|'):
+        key = entry[5:entry.find(' ')]
+        name_pos = entry.find('client_nickname=')+len('client_nickname=')
+        name = entry[name_pos:entry.find(' ',name_pos)].replace('\s',' ')
+
+        clients[key] = name
 
 def reconnect():
     try:
