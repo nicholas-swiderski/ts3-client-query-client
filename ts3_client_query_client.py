@@ -63,7 +63,7 @@ class TelnetThread(QThread):
             message = text[message_pos:text.find(' ',message_pos)].replace('\s',' ')
             #replace literal '\n' with newline
             message = message.replace('\n', "\n")
-
+            message = message.replace('\p', '|')
             main.text_message_event.emit(name, message)
 
         # elif text.startswith('notifycliententerview '):
@@ -97,7 +97,7 @@ class TelnetThread(QThread):
 
         while not self.breakflag:
             try:
-                data = connection.read_until(b"\n\r").decode('ascii')
+                data = connection.read_until(b"\n\r").decode()
             except (OSError,EOFError):
                 reconnect()
                 continue
@@ -126,12 +126,22 @@ def display_message(text):
 
 @pyqtSlot()
 def text_message(name, text):
-    if '[URL]' in text and '[\/URL]' in text:
-        while '[URL]' in text:
-            tag_start_pos = text.find('[URL]')
-            tag_end_pos = text.find('[\/URL]')
-            url = text[tag_start_pos+len('[URL]'):tag_end_pos].replace('\/','/')
-            text = text[:tag_start_pos] + '<a href="' + url + '">' + url + '</a>' + text[tag_end_pos+len('[\/URL]'):]
+    #linkifying text leads to a bug i've been unable to reliably reproduce much less fix wherein regular text after
+    #   two or more URLs (maybe) from different UIDs (possibly) after clicking one of the links (i think) will also be
+    #   considered part of the (clicked?) link
+    #   i just gave up after two months
+
+    # if '[URL]' in text and '[\/URL]' in text:
+    #     while '[URL]' in text:
+    #         tag_start_pos = text.find('[URL]')
+    #         tag_end_pos = text.find('[\/URL]')
+    #         url = text[tag_start_pos+len('[URL]'):tag_end_pos].replace('\/','/')
+    #         text = text[:tag_start_pos] + '<a href="' + url + '">' + url + '</a>' + text[tag_end_pos+len('[\/URL]'):]
+
+    if '[URL]' in text:
+        text = text.replace('[URL]','')
+    if'[\/URL]' in text:
+        text = text.replace('[\/URL]','')
 
     display_message(name + ': ' + text)
 
@@ -159,14 +169,14 @@ def update_client_list():
         connection.write("clientlist\n".encode('ascii'))
 
     try:
-        data = connection.read_until(b"\n\r").decode('ascii')
+        data = connection.read_until(b"\n\r").decode()
     except (OSError,EOFError):
         reconnect()
-        data = connection.read_until(b"\n\r").decode('ascii')
+        data = connection.read_until(b"\n\r").decode()
 
     while 'clid' not in data:
         try:
-            data = connection.read_until(b"\n\r").decode('ascii')
+            data = connection.read_until(b"\n\r").decode()
         except (OSError,EOFError):
             reconnect()
 
