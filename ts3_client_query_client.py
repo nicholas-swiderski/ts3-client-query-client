@@ -1,5 +1,6 @@
 import sys
 import telnetlib
+import re
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
 import mainwindow
@@ -138,10 +139,9 @@ def text_message(name, text):
     #         url = text[tag_start_pos+len('[URL]'):tag_end_pos].replace('\/','/')
     #         text = text[:tag_start_pos] + '<a href="' + url + '">' + url + '</a>' + text[tag_end_pos+len('[\/URL]'):]
 
-    if '[URL]' in text:
-        text = text.replace('[URL]','')
-    if'[\/URL]' in text:
-        text = text.replace('[\/URL]','')
+    if '[URL]' and '[\/URL]' in text:
+        text = re.sub(r'\[(\\/)?URL\]', '', text)
+        text = re.sub(r'\[URL\](.*?)\[/URL\]', r'<a href="\1">\1</a>', text)
 
     display_message(name + ': ' + text)
 
