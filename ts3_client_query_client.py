@@ -1,8 +1,10 @@
+import re
 import sys
 import telnetlib
-import re
-from PyQt5.QtWidgets import QApplication, QMainWindow
+
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
+from PyQt5.QtWidgets import QApplication, QMainWindow
+
 import mainwindow
 
 clients = {}
@@ -11,6 +13,20 @@ text_messages_text = []
 connection = telnetlib.Telnet()
 target_ip_addr = '192.168.1.2'
 target_port = 25639
+
+replace_dict = {
+    '\\\\': '\\',
+    '\\/': '/',
+    '\\s': ' ',
+    '\\p': '|',
+    '\\a': '\a',
+    '\\b': '\b',
+    '\\f': '\f',
+    '\\n': '\n',
+    '\\r': '\r',
+    '\\t': '\t',
+    '\\v': '\v',
+}
 
 class Main(QObject):
 
@@ -42,63 +58,40 @@ class TelnetThread(QThread):
 
         text = data.strip('\n\r')
 
-        if text.startswith('notifytalkstatuschange '):
+        if text.startswith('notifytalkstatuschange'):
             clid_pos = text.find('clid=')
-            clid = text[clid_pos+len('clid='):]
+            clid = text[clid_pos+len('clid='):text.find(' ',clid_pos)]
 
             if clid not in clients.keys():
                 update_client_list()
 
             if 'status=1' in text:
                 main.speakeron_event.emit(clients[clid])
-            # handle case where connection is established while someone is speaking
+            #handle case where connection is established while someone is speaking
             elif 'status=0' in text:
                 main.speakeroff_event.emit(clients[clid])
 
-        elif text.startswith('notifytextmessage '):
+        elif text.startswith('notifytextmessage'):
 
             name_pos = text.find('invokername=')+len('invokername=')
-            name = text[name_pos:text.find(' ',name_pos)].replace('\s',' ')
+            name = text[name_pos:text.find(' ',name_pos)]
 
             message_pos = text.find('msg=')+len('msg=')
-            message = text[message_pos:text.find(' ',message_pos)].replace('\s',' ')
-            #replace literal '\n' with newline
-            message = message.replace('\n', "\n")
-            message = message.replace('\p', '|')
+            message = text[message_pos:text.find(' ',message_pos)]
             main.text_message_event.emit(name, message)
 
-        # elif text.startswith('notifycliententerview '):
-        #     clid_pos = text.find('clid=')
-        #     clid = text[clid_pos+len('clid='):text.find(' ',clid_pos)]
-        #     client_nickname_pos = text.find('client_nickname=')
-        #     client_nickname = text[client_nickname_pos+len('client_nickname='):text.find(' ',client_nickname_pos)].replace('\s',' ')
-        #     main.add_client_event.emit(clid,client_nickname)
-        #     main.display_text_event.emit(client_nickname + ' has joined')
-        #
-        # elif text.startswith('notifyclientleftview '):
-        #     clid_pos = text.find('clid=')
-        #     clid = text[clid_pos+len('clid='):]
-        #     main.display_text_event.emit(clients[clid] + ' has left')
+        elif text.startswith('notifycurrentserverconnectionchanged'):
+            update_client_list()
 
     def run(self):
 
-        try:
-            connection.open(target_ip_addr,target_port,10)
-        except OSError:
-            main.display_text_event.emit("ERROR: cannot connect")
-            return
+        reconnect()
 
         update_client_list()
 
-        try:
-            connection.write("clientnotifyregister schandlerid=0 event=any\n".encode('ascii'))
-        except (OSError,EOFError):
-            reconnect()
-            connection.write("clientnotifyregister schandlerid=0 event=any\n".encode('ascii'))
-
         while not self.breakflag:
             try:
-                data = connection.read_until(b"\n\r").decode()
+                data = connection.read_until(b'\n\r').decode()
             except (OSError,EOFError):
                 reconnect()
                 continue
@@ -108,15 +101,16 @@ class TelnetThread(QThread):
 
 @pyqtSlot()
 def append_speakers_text(text):
-    speakers_text.append(text + "\n")
-    ui.textBrowser_speakers.setPlainText('')
-    for t in speakers_text:
-        ui.textBrowser_speakers.insertPlainText(t)
+    if text + '\n' not in speakers_text:
+        speakers_text.append(text + '\n')
+        ui.textBrowser_speakers.setPlainText('')
+        for t in speakers_text:
+            ui.textBrowser_speakers.insertPlainText(t)
 
 @pyqtSlot()
 def remove_speakers_text(text):
-    if text + "\n" in speakers_text:
-        speakers_text.remove(text + "\n")
+    if text + '\n' in speakers_text:
+        speakers_text.remove(text + '\n')
         ui.textBrowser_speakers.setPlainText('')
         for t in speakers_text:
             ui.textBrowser_speakers.insertPlainText(t)
@@ -128,72 +122,78 @@ def display_message(text):
 @pyqtSlot()
 def text_message(name, text):
     #linkifying text leads to a bug i've been unable to reliably reproduce much less fix wherein regular text after
-    #   two or more URLs (maybe) from different UIDs (possibly) after clicking one of the links (i think) will also be
-    #   considered part of the (clicked?) link
+    #   a URL will also be considered part of the link
     #   i just gave up after two months
 
-    # if '[URL]' in text and '[\/URL]' in text:
-    #     while '[URL]' in text:
-    #         tag_start_pos = text.find('[URL]')
-    #         tag_end_pos = text.find('[\/URL]')
-    #         url = text[tag_start_pos+len('[URL]'):tag_end_pos].replace('\/','/')
-    #         text = text[:tag_start_pos] + '<a href="' + url + '">' + url + '</a>' + text[tag_end_pos+len('[\/URL]'):]
+    for fr, to in replace_dict:
+        text = text.replace(fr, to)
+        name = name.replace(fr, to)
 
-    if '[URL]' and '[\/URL]' in text:
-        text = re.sub(r'\[(\\/)?URL\]', '', text)
-        text = re.sub(r'\[URL\](.*?)\[/URL\]', r'<a href="\1">\1</a>', text)
+    if '[URL]' and '[/URL]' in text:
+        text = re.sub(r'\[/?URL\]', '', text)
 
     display_message(name + ': ' + text)
 
 @pyqtSlot()
 def send_text_message(text='',retry=0):
     if retry > 1:
-        display_message("ERROR: cannot connect")
+        display_message('ERROR: cannot connect')
         thread.breakflag = True
         return
     if text == '':
         text = ui.lineEdit.text()
     ui.lineEdit.clear()
-    send_text = 'sendtextmessage targetmode=2 msg=' + text.replace(' ','\s')
+
+    #reverse replace
+    for to, fr in replace_dict:
+        text.replace(fr, to)
+
+    send_text = 'sendtextmessage targetmode=2 msg=' + text
     try:
-        connection.write((send_text + "\n").encode('ascii'))
+        connection.write((send_text + '\n').encode('ascii'))
     except (OSError,EOFError):
         reconnect()
-        send_text_message(send_text,1)
+        send_text_message(send_text, retry + 1)
 
 def update_client_list():
     try:
-        connection.write("clientlist\n".encode('ascii'))
+        connection.write('clientlist\n'.encode('ascii'))
     except (OSError,EOFError):
         reconnect()
-        connection.write("clientlist\n".encode('ascii'))
+        connection.write('clientlist\n'.encode('ascii'))
 
     try:
-        data = connection.read_until(b"\n\r").decode()
+        data = connection.read_until(b'\n\r').decode()
     except (OSError,EOFError):
         reconnect()
-        data = connection.read_until(b"\n\r").decode()
+        data = connection.read_until(b'\n\r').decode()
 
     while 'clid' not in data:
         try:
-            data = connection.read_until(b"\n\r").decode()
+            data = connection.read_until(b'\n\r').decode()
         except (OSError,EOFError):
             reconnect()
 
     for entry in data.split('|'):
         key = entry[5:entry.find(' ')]
         name_pos = entry.find('client_nickname=')+len('client_nickname=')
-        name = entry[name_pos:entry.find(' ',name_pos)].replace('\s',' ')
+        name = entry[name_pos:entry.find(' ',name_pos)]
+
+        for fr, to in replace_dict:
+            name = name.replace(fr, to)
 
         clients[key] = name
 
 def reconnect():
+    notify_events = ['notifytalkstatuschange','notifytextmessage','notifycurrentserverconnectionchanged']
     try:
         connection.open(target_ip_addr,target_port,10)
-        connection.write("clientnotifyregister schandlerid=0 event=any\n".encode('ascii'))
+        for event in notify_events:
+            connection.write(('clientnotifyregister schandlerid=0 event=' + event + '\n').encode('ascii'))
     except OSError:
-        display_message("ERROR: cannot connect")
+        display_message('ERROR: cannot connect')
         thread.breakflag = True
+
 
 if __name__ == '__main__':
     thread = TelnetThread()
@@ -202,7 +202,6 @@ if __name__ == '__main__':
     window = QMainWindow()
     ui = mainwindow.Ui_MainWindow()
     ui.setupUi(window)
-    ui.textBrowser_text_messages.setOpenExternalLinks(True)
 
     window.show()
     main = Main()
