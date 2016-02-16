@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 import mainwindow
 
 clients = {}
+channels = {}
 speakers_text = []
 text_messages_text = []
 connection = telnetlib.Telnet()
@@ -27,6 +28,9 @@ replace_dict = {
     '\\t': '\t',
     '\\v': '\v',
 }
+
+my_clid = ''
+my_cid = ''
 
 class Main(QObject):
 
@@ -58,36 +62,98 @@ class TelnetThread(QThread):
 
         text = data.strip('\n\r')
 
-        if text.startswith('notifytalkstatuschange'):
-            clid_pos = text.find('clid=')
-            clid = text[clid_pos+len('clid='):text.find(' ',clid_pos)]
+        if text.startswith('notifytalkstatuschange '):
+            clid = get_param(text, 'clid')
 
             if clid not in clients.keys():
                 update_client_list()
 
             if 'status=1' in text:
-                main.speakeron_event.emit(clients[clid])
+                main.speakeron_event.emit(clients[clid][0])
             #handle case where connection is established while someone is speaking
             elif 'status=0' in text:
-                main.speakeroff_event.emit(clients[clid])
+                main.speakeroff_event.emit(clients[clid][0])
 
-        elif text.startswith('notifytextmessage'):
+        elif text.startswith('notifytextmessage '):
 
-            name_pos = text.find('invokername=')+len('invokername=')
-            name = text[name_pos:text.find(' ',name_pos)]
+            name = get_param(text, 'invokername')
+            message = get_param(text, 'msg')
 
-            message_pos = text.find('msg=')+len('msg=')
-            message = text[message_pos:text.find(' ',message_pos)]
             main.text_message_event.emit(name, message)
 
-        elif text.startswith('notifycurrentserverconnectionchanged'):
+        elif text.startswith('notifycurrentserverconnectionchanged '):
             update_client_list()
+            update_channel_list()
+            whoami()
+
+        elif text.startswith('notifyclientmoved '):
+            clid = get_param(text, 'clid')
+            ctid = get_param(text, 'ctid')
+
+            if my_cid == '':
+                whoami()
+
+            if clid not in clients.keys():
+                update_client_list()
+
+            if ctid not in channels.keys():
+                update_channel_list()
+
+            if ctid == my_cid:
+                main.display_text_event.emit(clients[clid][0] + ' has joined your channel')
+            elif clients[clid][1] == my_cid and ctid != my_cid:
+                main.display_text_event.emit(clients[clid][0] + ' has left your channel to channel <b>' + channels[ctid] + '</b>')
+
+        elif text.startswith('notifycliententerview '):
+            ctid = get_param(text, 'ctid')
+            clid = get_param(text, 'clid')
+
+            if my_cid == '':
+                whoami()
+
+            if clid not in clients.keys():
+                update_client_list()
+
+            if ctid not in channels.keys():
+                update_channel_list()
+
+            if ctid == my_cid:
+                main.display_text_event.emit(clients[clid][0] + ' has joined your channel')
+
+        elif text.startswith('notifyclientleftview '):
+            cfid = get_param(text, 'cfid')
+            clid = get_param(text, 'clid')
+
+            if my_cid == '':
+                whoami()
+
+            if clid not in clients.keys():
+                update_client_list()
+
+            if cfid not in channels.keys():
+                update_channel_list()
+
+            if cfid == my_cid:
+                main.display_text_event.emit(clients[clid][0] + ' has left your channel')
+
+        elif text.startswith('notifyclientpoke '):
+            name = get_param(text, 'invokername')
+            message = get_param(text, 'msg')
+
+            main.display_text_event.emit('<b> !!POKE FROM ' + name + '!!! ' + message + '</b>')
+
+        elif text.startswith('notifyclientupdated '):
+            update_client_list()
+
+        elif text.startswith('notifychanneledited '):
+            update_channel_list()
 
     def run(self):
 
         reconnect()
 
         update_client_list()
+        update_channel_list()
 
         while not self.breakflag:
             try:
@@ -98,6 +164,15 @@ class TelnetThread(QThread):
             self.handle_data(data)
 
         connection.close()
+
+def get_param(data,key):
+    temp = data.split(' ')
+    for value in temp:
+        line = value.split('=', 1)
+        if line[0] == key:
+            return line[1]
+    print(key + ' not found!!\nData: ' + data + ' \n')
+    return None
 
 @pyqtSlot()
 def append_speakers_text(text):
@@ -175,17 +250,70 @@ def update_client_list():
             reconnect()
 
     for entry in data.split('|'):
-        key = entry[5:entry.find(' ')]
-        name_pos = entry.find('client_nickname=')+len('client_nickname=')
-        name = entry[name_pos:entry.find(' ',name_pos)]
+        clid = get_param(entry, 'clid')
+        name = get_param(entry, 'client_nickname')
+        cid = get_param(entry, 'cid')
+
 
         for fr, to in replace_dict:
             name = name.replace(fr, to)
 
-        clients[key] = name
+        clients[clid] = (name, cid)
+
+def update_channel_list():
+    try:
+        connection.write('channellist\n'.encode('ascii'))
+    except (OSError,EOFError):
+        reconnect()
+        connection.write('channellist\n'.encode('ascii'))
+
+    try:
+        data = connection.read_until(b'\n\r').decode()
+    except (OSError,EOFError):
+        reconnect()
+        data = connection.read_until(b'\n\r').decode()
+
+    while 'cid' not in data:
+        try:
+            data = connection.read_until(b'\n\r').decode()
+        except (OSError,EOFError):
+            reconnect()
+
+    for entry in data.split('|'):
+        cid = get_param(entry, 'cid')
+        channel_name = get_param(entry, 'channel_name')
+        channels[cid] = channel_name
+
+def whoami():
+    global my_clid, my_cid
+
+    try:
+        connection.write('whoami\n'.encode('ascii'))
+    except (OSError,EOFError):
+        reconnect()
+        connection.write('whoami\n'.encode('ascii'))
+
+    try:
+        data = connection.read_until(b'\n\r').decode()
+    except (OSError,EOFError):
+        reconnect()
+        data = connection.read_until(b'\n\r').decode()
+
+    my_clid = re.sub(r'[^0-9]', '', get_param(data, 'clid'))
+    my_cid = re.sub(r'[^0-9]', '', get_param(data, 'cid'))
 
 def reconnect():
-    notify_events = ['notifytalkstatuschange','notifytextmessage','notifycurrentserverconnectionchanged']
+    notify_events = [
+        'notifytalkstatuschange',
+        'notifytextmessage',
+        'notifycurrentserverconnectionchanged',
+        'notifyclientmoved',
+        'notifycliententerview',
+        'notifyclientleftview',
+        'notifyclientpoke',
+        'notifyclientupdated',
+        'notifychanneledited'
+    ]
     try:
         connection.open(target_ip_addr,target_port,10)
         for event in notify_events:
@@ -193,7 +321,6 @@ def reconnect():
     except OSError:
         display_message('ERROR: cannot connect')
         thread.breakflag = True
-
 
 if __name__ == '__main__':
     thread = TelnetThread()
