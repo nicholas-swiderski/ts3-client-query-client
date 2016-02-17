@@ -168,7 +168,7 @@ class TelnetThread(QThread):
         connection.close()
 
 def ts_replace(data):
-    for fr, to in replace_dict:
+    for fr, to in replace_dict.items():
         data = data.replace(fr, to)
     return data
 
