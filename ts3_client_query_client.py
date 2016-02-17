@@ -60,93 +60,87 @@ class TelnetThread(QThread):
     @staticmethod
     def handle_data(data):
 
-        text = data.strip('\n\r')
+        for text in data:
 
-        if text.startswith('notifytalkstatuschange '):
-            clid = get_param(text, 'clid')
+            if text.startswith('notifytalkstatuschange '):
+                clid = get_param(text, 'clid')
 
-            if clid not in clients.keys():
+                if clid not in clients.keys():
+                    update_client_list()
+
+                if 'status=1' in text:
+                    main.speakeron_event.emit(clients[clid][0])
+                #handle case where connection is established while someone is speaking
+                elif 'status=0' in text:
+                    main.speakeroff_event.emit(clients[clid][0])
+
+            elif text.startswith('notifytextmessage '):
+
+                name = ts_replace(get_param(text, 'invokername'))
+                message = ts_replace(get_param(text, 'msg'))
+
+                main.text_message_event.emit(name, message)
+
+            elif text.startswith('notifycurrentserverconnectionchanged '):
                 update_client_list()
-
-            if 'status=1' in text:
-                main.speakeron_event.emit(clients[clid][0])
-            #handle case where connection is established while someone is speaking
-            elif 'status=0' in text:
-                main.speakeroff_event.emit(clients[clid][0])
-
-        elif text.startswith('notifytextmessage '):
-
-            name = get_param(text, 'invokername')
-            message = get_param(text, 'msg')
-
-            main.text_message_event.emit(name, message)
-
-        elif text.startswith('notifycurrentserverconnectionchanged '):
-            update_client_list()
-            update_channel_list()
-            whoami()
-
-        elif text.startswith('notifyclientmoved '):
-            clid = get_param(text, 'clid')
-            ctid = get_param(text, 'ctid')
-
-            if my_cid == '':
+                update_channel_list()
                 whoami()
 
-            if clid not in clients.keys():
+            elif text.startswith('notifyclientmoved '):
+                clid = get_param(text, 'clid')
+                ctid = get_param(text, 'ctid')
+
+                if my_cid == '':
+                    whoami()
+
+                if clid not in clients.keys():
+                    update_client_list()
+
+                if ctid not in channels.keys():
+                    update_channel_list()
+
+                if ctid == my_cid:
+                    main.display_text_event.emit(clients[clid][0] + ' has joined your channel')
+                elif clients[clid][1] == my_cid and ctid != my_cid:
+                    main.display_text_event.emit(clients[clid][0] + ' has left your channel to channel <b>' + channels[ctid] + '</b>')
+
+            elif text.startswith('notifycliententerview '):
+                ctid = get_param(text, 'ctid')
+                clid = get_param(text, 'clid')
+
+                if my_cid == '':
+                    whoami()
+
+                if clid not in clients.keys():
+                    update_client_list()
+
+                if ctid == my_cid:
+                    main.display_text_event.emit(clients[clid][0] + ' has joined your channel')
+
+            elif text.startswith('notifyclientleftview '):
+                cfid = get_param(text, 'cfid')
+                clid = get_param(text, 'clid')
+
+                if my_cid == '':
+                    whoami()
+
+                if clid not in clients.keys():
+                    update_client_list()
+
+                if cfid == my_cid:
+                    main.display_text_event.emit(clients[clid][0] + ' has left your channel')
+
+            elif text.startswith('notifyclientpoke '):
+                name = ts_replace(get_param(text, 'invokername'))
+                message = ts_replace(get_param(text, 'msg'))
+
+                main.display_text_event.emit('<b> !!POKE FROM ' + name + '!!! ' + message + '</b>')
+
+            elif text.startswith('notifyclientupdated '):
                 update_client_list()
 
-            if ctid not in channels.keys():
+            elif text.startswith('notifychanneledited '):
                 update_channel_list()
-
-            if ctid == my_cid:
-                main.display_text_event.emit(clients[clid][0] + ' has joined your channel')
-            elif clients[clid][1] == my_cid and ctid != my_cid:
-                main.display_text_event.emit(clients[clid][0] + ' has left your channel to channel <b>' + channels[ctid] + '</b>')
-
-        elif text.startswith('notifycliententerview '):
-            ctid = get_param(text, 'ctid')
-            clid = get_param(text, 'clid')
-
-            if my_cid == '':
-                whoami()
-
-            if clid not in clients.keys():
-                update_client_list()
-
-            if ctid not in channels.keys():
-                update_channel_list()
-
-            if ctid == my_cid:
-                main.display_text_event.emit(clients[clid][0] + ' has joined your channel')
-
-        elif text.startswith('notifyclientleftview '):
-            cfid = get_param(text, 'cfid')
-            clid = get_param(text, 'clid')
-
-            if my_cid == '':
-                whoami()
-
-            if clid not in clients.keys():
-                update_client_list()
-
-            if cfid not in channels.keys():
-                update_channel_list()
-
-            if cfid == my_cid:
-                main.display_text_event.emit(clients[clid][0] + ' has left your channel')
-
-        elif text.startswith('notifyclientpoke '):
-            name = get_param(text, 'invokername')
-            message = get_param(text, 'msg')
-
-            main.display_text_event.emit('<b> !!POKE FROM ' + name + '!!! ' + message + '</b>')
-
-        elif text.startswith('notifyclientupdated '):
-            update_client_list()
-
-        elif text.startswith('notifychanneledited '):
-            update_channel_list()
 
     def run(self):
 
@@ -154,16 +148,29 @@ class TelnetThread(QThread):
 
         update_client_list()
         update_channel_list()
+        whoami()
 
         while not self.breakflag:
+            data = []
             try:
-                data = connection.read_until(b'\n\r').decode()
+                raw_data = connection.read_until(b'\n\r').decode()
             except (OSError,EOFError):
                 reconnect()
                 continue
+
+            while '\n\r' in raw_data:
+                temp = raw_data.split('\n\r', 1)
+                data.append(temp[0])
+                raw_data = temp[1]
+
             self.handle_data(data)
 
         connection.close()
+
+def ts_replace(data):
+    for fr, to in replace_dict:
+        data = data.replace(fr, to)
+    return data
 
 def get_param(data,key):
     temp = data.split(' ')
@@ -200,9 +207,8 @@ def text_message(name, text):
     #   a URL will also be considered part of the link
     #   i just gave up after two months
 
-    for fr, to in replace_dict:
-        text = text.replace(fr, to)
-        name = name.replace(fr, to)
+    text = ts_replace(text)
+    name = ts_replace(name)
 
     if '[URL]' and '[/URL]' in text:
         text = re.sub(r'\[/?URL\]', '', text)
@@ -243,22 +249,15 @@ def update_client_list():
         reconnect()
         data = connection.read_until(b'\n\r').decode()
 
-    while 'clid' not in data:
-        try:
-            data = connection.read_until(b'\n\r').decode()
-        except (OSError,EOFError):
-            reconnect()
+    for line in data.split('\n\r'):
+        if 'clid' in line and 'client_nickname' in line and 'cid' in line:
+            for entry in line.split('|'):
+                clid = get_param(entry, 'clid')
+                cid = get_param(entry, 'cid')
 
-    for entry in data.split('|'):
-        clid = get_param(entry, 'clid')
-        name = get_param(entry, 'client_nickname')
-        cid = get_param(entry, 'cid')
+                name = ts_replace(get_param(entry, 'client_nickname'))
 
-
-        for fr, to in replace_dict:
-            name = name.replace(fr, to)
-
-        clients[clid] = (name, cid)
+                clients[clid] = (name, cid)
 
 def update_channel_list():
     try:
@@ -273,16 +272,13 @@ def update_channel_list():
         reconnect()
         data = connection.read_until(b'\n\r').decode()
 
-    while 'cid' not in data:
-        try:
-            data = connection.read_until(b'\n\r').decode()
-        except (OSError,EOFError):
-            reconnect()
+    for line in data.split('\n\r'):
+        if 'cid' in line and 'channel_name' in line:
+            for entry in data.split('|'):
+                cid = get_param(entry, 'cid')
+                channel_name = ts_replace(get_param(entry, 'channel_name'))
 
-    for entry in data.split('|'):
-        cid = get_param(entry, 'cid')
-        channel_name = get_param(entry, 'channel_name')
-        channels[cid] = channel_name
+                channels[cid] = channel_name
 
 def whoami():
     global my_clid, my_cid
@@ -299,8 +295,10 @@ def whoami():
         reconnect()
         data = connection.read_until(b'\n\r').decode()
 
-    my_clid = re.sub(r'[^0-9]', '', get_param(data, 'clid'))
-    my_cid = re.sub(r'[^0-9]', '', get_param(data, 'cid'))
+    for line in data.split('\n\r'):
+        if 'clid' in line and 'cid' in line:
+            my_clid = re.sub(r'[^0-9]', '', get_param(data, 'clid'))
+            my_cid = re.sub(r'[^0-9]', '', get_param(data, 'cid'))
 
 def reconnect():
     notify_events = [
@@ -316,6 +314,7 @@ def reconnect():
     ]
     try:
         connection.open(target_ip_addr,target_port,10)
+        connection.read_until(b'selected schandlerid=1\n\r', 1)
         for event in notify_events:
             connection.write(('clientnotifyregister schandlerid=0 event=' + event + '\n').encode('ascii'))
     except OSError:
