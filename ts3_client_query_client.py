@@ -18,17 +18,17 @@ target_port = 25639
 debug = False
 
 replace_list = [
-    ("\\", r"\\"),
-    ("/", r"\/"),
-    (" ", r"\s"),
-    ("|", r"\p"),
-    ("\a", r"\a"),
-    ("\b", r"\b"),
-    ("\f", r"\f"),
-    ("\n", r"\n"),
-    ("\r", r"\r"),
-    ("\t", r"\t"),
-    ("\v", r"\v")
+    ('\\', r'\\'),
+    ('/', r'\/'),
+    (' ', r'\s'),
+    ('|', r'\p'),
+    ('\a', r'\a'),
+    ('\b', r'\b'),
+    ('\f', r'\f'),
+    ('\n', r'\n'),
+    ('\r', r'\r'),
+    ('\t', r'\t'),
+    ('\v', r'\v')
 ]
 
 my_clid = ''
@@ -212,6 +212,9 @@ def remove_speakers_text(text):
 
 @pyqtSlot()
 def display_message(text):
+    if debug:
+        print('DEBUG [display_message]: text=' + text)
+    text = text.replace(' ', '&nbsp;')
     ui.textBrowser_text_messages.append(text)
 
 @pyqtSlot()
@@ -277,7 +280,8 @@ def ts_replace(data):
         print('DEBUG [ts_place]: before=' + data)
     for to, fr in reversed(replace_list):
         if fr != r'\\':
-            data = re.sub(r'([^\\])'+re.escape(fr), r'\1'+to, data)
+            while re.search(r'([^\\]|^)'+re.escape(fr), data):
+                data = re.sub(r'([^\\]|^)'+re.escape(fr), r'\1'+to, data)
         else:
             data = data.replace(fr, to)
     if debug:
