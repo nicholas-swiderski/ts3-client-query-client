@@ -1,3 +1,4 @@
+import html
 import re
 import sys
 import telnetlib
@@ -111,13 +112,13 @@ class TelnetThread(QThread):
                         print('ERROR [handle_data]: error updating channel list while handling notifyclientmoved!')
 
                 if clid == my_clid:
-                    main.display_text_event.emit('You moved to channel <b>' + channels[ctid] + '</b>')
+                    main.display_text_event.emit('You moved to channel <b>' + html.escape(channels[ctid]) + '</b>')
                     if whoami() != 0:
                         print(print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!'))
                 elif ctid == my_cid:
-                    main.display_text_event.emit('<b>' + clients[clid][0] + '</b>' + ' has joined your channel')
+                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
                 elif clients[clid][1] == my_cid and ctid != my_cid:
-                    main.display_text_event.emit('<b>' + clients[clid][0] + '</b> has left your channel to channel <b>' + channels[ctid] + '</b>')
+                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel to channel <b>' + html.escape(channels[ctid]) + '</b>')
 
             elif text.startswith('notifycliententerview '):
                 ctid = get_param(text, 'ctid')
@@ -132,7 +133,7 @@ class TelnetThread(QThread):
                         print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
 
                 if ctid == my_cid:
-                    main.display_text_event.emit('<b>' + clients[clid][0] + '</b>' + ' has joined your channel')
+                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
 
             elif text.startswith('notifyclientleftview '):
                 cfid = get_param(text, 'cfid')
@@ -147,13 +148,13 @@ class TelnetThread(QThread):
                         print('ERROR [handle_data]: error updating client list while handling notifyclientleftview!')
 
                 if cfid == my_cid:
-                    main.display_text_event.emit('<b>' + clients[clid][0] + '</b>' + ' has left your channel')
+                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
 
             elif text.startswith('notifyclientpoke '):
                 name = ts_replace(get_param(text, 'invokername'))
                 message = ts_replace(get_param(text, 'msg'))
 
-                main.display_text_event.emit('<b> !!POKE FROM ' + name + '!!! ' + message + '</b>')
+                main.display_text_event.emit('<b> !!POKE FROM ' + html.escape(name) + '!!! ' + html.escape(message) + '</b>')
 
             elif text.startswith('notifyclientupdated '):
                 if update_client_list() != 0:
@@ -226,7 +227,7 @@ def text_message(name, text):
     if '[URL]' and '[/URL]' in text:
         text = re.sub(r'\[/?URL\]', '', text)
 
-    display_message('<b>' + name + '</b>' + ': ' + text)
+    display_message('<b>' + html.escape(name) + '</b>' + ': ' + html.escape(text))
 
 @pyqtSlot()
 def send_text_message():
@@ -431,7 +432,7 @@ def reconnect():
             elif response[0] == '':
                 print('ERROR [reconnect]: id=' + response[1][0] + ' msg=' + response[1][1])
     except (OSError,EOFError):
-        display_message('ERROR [reconnect]: cannot connect')
+        print('ERROR [reconnect]: cannot connect')
         thread.breakflag = True
 
 if __name__ == '__main__':
