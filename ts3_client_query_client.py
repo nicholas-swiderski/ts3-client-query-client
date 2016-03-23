@@ -47,6 +47,8 @@ notify_events = [
 my_clid = ''
 my_cid = ''
 
+data_queue = []
+
 class Main(QObject):
 
     speakeron_event = pyqtSignal([str])
@@ -73,22 +75,22 @@ class TelnetThread(QThread):
     breakflag = False
 
     @staticmethod
-    def handle_data(data):
+    def handle_data():
 
         global my_cid,my_clid
 
-        for text in data:
+        while len(data_queue) > 0:
+            text = data_queue.pop(0)
 
             if text.startswith('notifytalkstatuschange '):
                 clid = get_param(text, 'clid')
 
-                if clid not in clients.keys():
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifytalkstatuschange!')
+                if clid not in clients.keys() and update_client_list() != 0:
+                    print('ERROR [handle_data]: error updating client list while handling notifytalkstatuschange!')
+                    continue
 
                 if 'status=1' in text:
                     main.speakeron_event.emit(clients[clid][0])
-                #handle case where connection is established while someone is speaking
                 elif 'status=0' in text:
                     main.speakeroff_event.emit(clients[clid][0])
 
@@ -101,7 +103,7 @@ class TelnetThread(QThread):
 
             elif text.startswith('notifycurrentserverconnectionchanged '):
                 if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifycurrentserverconnectionchanged!')
+                    print('ERROR [handle_data]: error updating client list while handling notifycurrentserverconnectionchanged!')
                 if update_channel_list() != 0:
                     print('ERROR [handle_data]: error updating channel list while handling notifycurrentserverconnectionchanged!')
                 if whoami() != 0:
@@ -111,23 +113,23 @@ class TelnetThread(QThread):
                 clid = get_param(text, 'clid')
                 ctid = get_param(text, 'ctid')
 
-                if my_cid == '' or my_clid == '':
-                    if whoami() != 0:
-                        print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!')
+                if (my_cid == '' or my_clid == '') and whoami() != 0:
+                    print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!')
+                    continue
 
-                if clid not in clients.keys():
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
+                if clid not in clients.keys() and update_client_list() != 0:
+                    print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
+                    continue
 
-                if ctid not in channels.keys():
-                    if update_channel_list() != 0:
-                        print('ERROR [handle_data]: error updating channel list while handling notifyclientmoved!')
+                if ctid not in channels.keys() and update_channel_list() != 0:
+                    print('ERROR [handle_data]: error updating channel list while handling notifyclientmoved!')
+                    continue
 
                 if clid == my_clid:
                     main.display_text_event.emit('You moved to channel <b>' + html.escape(channels[ctid]) + '</b>')
                     if whoami() != 0:
                         print(print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!'))
-                elif ctid == my_cid:
+                elif ctid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
                 elif clients[clid][1] == my_cid and ctid != my_cid:
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel to channel <b>' + html.escape(channels[ctid]) + '</b>')
@@ -136,30 +138,30 @@ class TelnetThread(QThread):
                 ctid = get_param(text, 'ctid')
                 clid = get_param(text, 'clid')
 
-                if my_cid == '' or my_clid == '':
-                    if whoami() != 0:
-                        print('ERROR [handle_data]: error updating whoami while handling notifycliententerview!')
+                if (my_cid == '' or my_clid == '') and whoami() != 0:
+                    print('ERROR [handle_data]: error updating whoami while handling notifycliententerview!')
+                    continue
 
-                if clid not in clients.keys():
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
+                if clid not in clients.keys() and update_client_list() != 0:
+                    print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
+                    continue
 
-                if ctid == my_cid:
+                if ctid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
 
             elif text.startswith('notifyclientleftview '):
                 cfid = get_param(text, 'cfid')
                 clid = get_param(text, 'clid')
 
-                if my_cid == '' or my_clid == '':
-                    if whoami() != 0:
-                        print('ERROR [handle_data]: error updating whoami while handling notifyclientleftview!')
+                if (my_cid == '' or my_clid == '') and whoami() != 0:
+                    print('ERROR [handle_data]: error updating whoami while handling notifyclientleftview!')
+                    continue
 
-                if clid not in clients.keys():
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifyclientleftview!')
+                if clid not in clients.keys() and update_client_list() != 0:
+                    print('ERROR [handle_data]: error updating client list while handling notifyclientleftview!')
+                    continue
 
-                if cfid == my_cid:
+                if cfid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
 
             elif text.startswith('notifyclientpoke '):
@@ -173,18 +175,18 @@ class TelnetThread(QThread):
                 if ' client_nickname=' in text:
                     new_name = ts_replace(get_param(text, 'client_nickname'))
                     clid = ts_replace(get_param(text, 'clid'))
-                    if clid in clients.keys() and clients[clid][0] != new_name:
+                    if clid in clients.keys() and clients[clid][2] == '0' and clients[clid][0] != new_name:
                         main.display_text_event.emit('<b>' + clients[clid][0] + '</b> is now known as <b>' + new_name + '</b>')
+                        clients[clid][0] = new_name
 
                 if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifyclientupdated!')
+                    print('ERROR [handle_data]: error updating client list while handling notifyclientupdated!')
 
             elif text.startswith('notifychanneledited '):
                 if update_channel_list() != 0:
                     print('ERROR [handle_data]: error updating channel list while handling notifychanneledited!')
 
     def run(self):
-
         reconnect()
 
         if update_client_list() != 0:
@@ -197,7 +199,9 @@ class TelnetThread(QThread):
             print('ERROR [TelnetThread.run]: error updating whoami duirng initialization!')
 
         while not self.breakflag:
-            data = []
+            if data_queue:
+                self.handle_data()
+
             try:
                 raw_data = connection.read_until(b'\n\r').decode()
             except (OSError,EOFError):
@@ -206,11 +210,8 @@ class TelnetThread(QThread):
 
             while '\n\r' in raw_data:
                 temp = raw_data.split('\n\r', 1)
-                data.append(temp[0])
+                data_queue.append(temp[0])
                 raw_data = temp[1]
-
-            if data:
-                self.handle_data(data)
 
         connection.close()
 
@@ -275,7 +276,7 @@ def send_text_message():
 
 def recieve_response():
     last = ''
-    data = ''
+    recieve_data = ''
 
     while not last.startswith('error '):
         try:
@@ -291,14 +292,24 @@ def recieve_response():
             print('ERROR [recieve_response]: did not recieve complete response! Recieved data may be unusable!')
             thread.breakflag = True
             return (None, None)
-        data += last
+
+        #queue up any notifications ahead of the data we want
+        notify_flag = False
+        for item in notify_events:
+            if last.startswith(item):
+                data_queue.append(last)
+                notify_flag = True
+                break
+
+        if not notify_flag:
+            recieve_data += last
 
     e = (get_param(last, 'id'), get_param(last, 'msg'))
 
     if e[0] != '0':
         return ('', e)
 
-    return (data, '')
+    return (recieve_data, '')
 
 
 def ts_replace(data):
@@ -347,10 +358,15 @@ def update_client_list():
             for entry in line.split('|'):
                 clid = get_param(entry, 'clid')
                 cid = get_param(entry, 'cid')
+                type = get_param(entry, 'client_type')
 
                 name = ts_replace(get_param(entry, 'client_nickname'))
 
-                clients[clid] = (name, cid)
+                if clid.isnumeric() and cid.isnumeric():
+                    clients[clid] = (name, cid, type)
+                else:
+                    print('ERROR [update_client_list]: invalid entry: ' + entry)
+                    return 1
 
     if not found:
         print('ERROR [update_client_list]: no valid data returned for clientlist')
