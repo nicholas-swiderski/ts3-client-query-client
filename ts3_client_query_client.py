@@ -220,12 +220,9 @@ def display_message(text):
 
 @pyqtSlot()
 def text_message(name, text):
-    #linkifying text leads to a bug i've been unable to reliably reproduce much less fix wherein regular text after
-    #   a URL will also be considered part of the link
-    #   i just gave up after two months
-
     text = html.escape(text)
 
+    #linkify text
     while '[URL]' and '[/URL]' in text:
         start_pos = text.find('[URL]')
         end_pos = text.find('[/URL]')
@@ -233,17 +230,15 @@ def text_message(name, text):
 
         text = (text[:start_pos] + r'<a href="' + url + r'">' + url + r'</a>' + text[end_pos + len('[/URL]'):])
 
-        text = re.sub(r'\[/?URL\]', '', text, 2)
-
-    # if '[URL]' and '[/URL]' in text:
-    #     text = re.sub(r'\[/?URL\]', '', text)
-
     display_message('<b>' + html.escape(name) + '</b>' + ': ' + text)
 
 @pyqtSlot()
 def send_text_message():
     text = ui.lineEdit.text()
     ui.lineEdit.clear()
+
+    #matches a lot of non-valid URIs but we're not the URI police so whatever
+    text = re.sub(r'(?P<uri>(http|https|ftp):\/\/([^ ]+?\.[^ ]+?)+?)(?P<end> |$|\n)', r'[URL]\g<uri>[/URL]\g<end>',text)
 
     #reversed replace
     for fr, to in replace_list:
