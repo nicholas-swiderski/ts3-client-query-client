@@ -215,7 +215,7 @@ def remove_speakers_text(text):
 def display_message(text):
     if debug:
         print('DEBUG [display_message]: text=' + text)
-    text = text.replace(' ', '&nbsp;')
+
     ui.textBrowser_text_messages.append(text)
 
 @pyqtSlot()
@@ -224,10 +224,21 @@ def text_message(name, text):
     #   a URL will also be considered part of the link
     #   i just gave up after two months
 
-    if '[URL]' and '[/URL]' in text:
-        text = re.sub(r'\[/?URL\]', '', text)
+    text = html.escape(text)
 
-    display_message('<b>' + html.escape(name) + '</b>' + ': ' + html.escape(text))
+    while '[URL]' and '[/URL]' in text:
+        start_pos = text.find('[URL]')
+        end_pos = text.find('[/URL]')
+        url = text[start_pos + len('[URL]'):end_pos]
+
+        text = (text[:start_pos] + r'<a href="' + url + r'">' + url + r'</a>' + text[end_pos + len('[/URL]'):])
+
+        text = re.sub(r'\[/?URL\]', '', text, 2)
+
+    # if '[URL]' and '[/URL]' in text:
+    #     text = re.sub(r'\[/?URL\]', '', text)
+
+    display_message('<b>' + html.escape(name) + '</b>' + ': ' + text)
 
 @pyqtSlot()
 def send_text_message():
@@ -442,6 +453,8 @@ if __name__ == '__main__':
     window = QMainWindow()
     ui = mainwindow.Ui_MainWindow()
     ui.setupUi(window)
+
+    ui.textBrowser_text_messages.setOpenExternalLinks(True)
 
     window.show()
     main = Main()
