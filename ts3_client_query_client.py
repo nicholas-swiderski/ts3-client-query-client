@@ -85,9 +85,10 @@ class TelnetThread(QThread):
             if text.startswith('notifytalkstatuschange '):
                 clid = get_param(text, 'clid')
 
-                if clid not in clients.keys() and update_client_list() != 0:
-                    print('ERROR [handle_data]: error updating client list while handling notifytalkstatuschange!')
-                    continue
+                if clid not in clients.keys():
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifytalkstatuschange!')
+                        continue
 
                 if 'status=1' in text:
                     main.speakeron_event.emit(clients[clid][0])
@@ -117,13 +118,14 @@ class TelnetThread(QThread):
                     print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!')
                     continue
 
-                if clid not in clients.keys() and update_client_list() != 0:
-                    print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
-                    continue
+                if clid not in clients.keys():
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
+                        continue
 
-                if ctid not in channels.keys() and update_channel_list() != 0:
-                    print('ERROR [handle_data]: error updating channel list while handling notifyclientmoved!')
-                    continue
+                if ctid not in channels.keys():
+                        print('ERROR [handle_data]: error updating channel list while handling notifyclientmoved!')
+                        continue
 
                 if clid == my_clid:
                     main.display_text_event.emit('You moved to channel <b>' + html.escape(channels[ctid]) + '</b>')
@@ -142,9 +144,10 @@ class TelnetThread(QThread):
                     print('ERROR [handle_data]: error updating whoami while handling notifycliententerview!')
                     continue
 
-                if clid not in clients.keys() and update_client_list() != 0:
-                    print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
-                    continue
+                if clid not in clients.keys():
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
+                        continue
 
                 if ctid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
@@ -157,9 +160,10 @@ class TelnetThread(QThread):
                     print('ERROR [handle_data]: error updating whoami while handling notifyclientleftview!')
                     continue
 
-                if clid not in clients.keys() and update_client_list() != 0:
-                    print('ERROR [handle_data]: error updating client list while handling notifyclientleftview!')
-                    continue
+                if clid not in clients.keys():
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifyclientleftview!')
+                        continue
 
                 if cfid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
