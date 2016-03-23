@@ -157,6 +157,13 @@ class TelnetThread(QThread):
                 main.display_text_event.emit('<b> !!POKE FROM ' + html.escape(name) + '!!! ' + html.escape(message) + '</b>')
 
             elif text.startswith('notifyclientupdated '):
+
+                if ' client_nickname=' in text:
+                    new_name = ts_replace(get_param(text, 'client_nickname'))
+                    clid = ts_replace(get_param(text, 'clid'))
+                    if clid in clients.keys() and clients[clid][0] != new_name:
+                        main.display_text_event.emit('<b>' + clients[clid][0] + '</b> is now known as <b>' + new_name + '</b>')
+
                 if update_client_list() != 0:
                         print('ERROR [handle_data]: error updating client list while handling notifyclientupdated!')
 
