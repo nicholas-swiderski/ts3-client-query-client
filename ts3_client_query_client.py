@@ -32,6 +32,18 @@ replace_list = [
     ('\v', r'\v')
 ]
 
+notify_events = [
+    'notifytalkstatuschange',
+    'notifytextmessage',
+    'notifycurrentserverconnectionchanged',
+    'notifyclientmoved',
+    'notifycliententerview',
+    'notifyclientleftview',
+    'notifyclientpoke',
+    'notifyclientupdated',
+    'notifychanneledited'
+]
+
 my_clid = ''
 my_cid = ''
 
@@ -321,12 +333,6 @@ def update_client_list():
         reconnect()
         connection.write('clientlist\n'.encode('ascii'))
 
-    # try:
-    #     data = connection.read_until(b'\n\r').decode()
-    # except (OSError,EOFError):
-    #     reconnect()
-    #     data = connection.read_until(b'\n\r').decode()
-
     data = recieve_response()
     if data == (None, None):
         return 1
@@ -358,12 +364,6 @@ def update_channel_list():
     except (OSError,EOFError):
         reconnect()
         connection.write('channellist\n'.encode('ascii'))
-
-    # try:
-    #     data = connection.read_until(b'\n\r').decode()
-    # except (OSError,EOFError):
-    #     reconnect()
-    #     data = connection.read_until(b'\n\r').decode()
 
     data = recieve_response()
     if data == (None, None):
@@ -397,12 +397,6 @@ def whoami():
         reconnect()
         connection.write('whoami\n'.encode('ascii'))
 
-    # try:
-    #     data = connection.read_until(b'\n\r').decode()
-    # except (OSError,EOFError):
-    #     reconnect()
-    #     data = connection.read_until(b'\n\r').decode()
-
     data = recieve_response()
     if data == (None, None):
         return 1
@@ -423,17 +417,6 @@ def whoami():
     return 0
 
 def reconnect():
-    notify_events = [
-        'notifytalkstatuschange',
-        'notifytextmessage',
-        'notifycurrentserverconnectionchanged',
-        'notifyclientmoved',
-        'notifycliententerview',
-        'notifyclientleftview',
-        'notifyclientpoke',
-        'notifyclientupdated',
-        'notifychanneledited'
-    ]
     try:
         connection.open(target_ip_addr,target_port,10)
         connection.read_until(b'selected schandlerid=1\n\r', 1)
