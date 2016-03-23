@@ -177,7 +177,6 @@ class TelnetThread(QThread):
                     clid = ts_replace(get_param(text, 'clid'))
                     if clid in clients.keys() and clients[clid][2] == '0' and clients[clid][0] != new_name:
                         main.display_text_event.emit('<b>' + clients[clid][0] + '</b> is now known as <b>' + new_name + '</b>')
-                        clients[clid][0] = new_name
 
                 if update_client_list() != 0:
                     print('ERROR [handle_data]: error updating client list while handling notifyclientupdated!')
