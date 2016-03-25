@@ -114,9 +114,10 @@ class TelnetThread(QThread):
                 clid = get_param(text, 'clid')
                 ctid = get_param(text, 'ctid')
 
-                if (my_cid == '' or my_clid == '') and whoami() != 0:
-                    print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!')
-                    continue
+                if my_cid == '' or my_clid == '':
+                    if whoami() != 0:
+                        print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!')
+                        continue
 
                 if clid not in clients.keys():
                     if update_client_list() != 0:
@@ -124,6 +125,7 @@ class TelnetThread(QThread):
                         continue
 
                 if ctid not in channels.keys():
+                    if update_channel_list() != 0:
                         print('ERROR [handle_data]: error updating channel list while handling notifyclientmoved!')
                         continue
 
@@ -140,9 +142,10 @@ class TelnetThread(QThread):
                 ctid = get_param(text, 'ctid')
                 clid = get_param(text, 'clid')
 
-                if (my_cid == '' or my_clid == '') and whoami() != 0:
-                    print('ERROR [handle_data]: error updating whoami while handling notifycliententerview!')
-                    continue
+                if my_cid == '' or my_clid == '':
+                    if whoami() != 0:
+                        print('ERROR [handle_data]: error updating whoami while handling notifycliententerview!')
+                        continue
 
                 if clid not in clients.keys():
                     if update_client_list() != 0:
@@ -156,9 +159,10 @@ class TelnetThread(QThread):
                 cfid = get_param(text, 'cfid')
                 clid = get_param(text, 'clid')
 
-                if (my_cid == '' or my_clid == '') and whoami() != 0:
-                    print('ERROR [handle_data]: error updating whoami while handling notifyclientleftview!')
-                    continue
+                if (my_cid == '' or my_clid == ''):
+                    if whoami() != 0:
+                        print('ERROR [handle_data]: error updating whoami while handling notifyclientleftview!')
+                        continue
 
                 if clid not in clients.keys():
                     if update_client_list() != 0:
