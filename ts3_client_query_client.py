@@ -252,6 +252,8 @@ def text_message(name, text, mode):
 
     if mode == '3':
         name = '[SERVER] ' + name
+    elif mode == '1':
+        name = '[PM] ' + name
 
     #linkify text
     while '[URL]' and '[/URL]' in text:
