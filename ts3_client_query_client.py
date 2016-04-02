@@ -333,11 +333,10 @@ def ts_replace(data):
     return data
 
 def get_param(data,key):
-    temp = data.split(' ')
-    for value in temp:
+    for value in data.split(' '):
         line = value.split('=', 1)
         if line[0] == key:
-            return line[1]
+            return line[1].strip('\n\r')
     print(key + ' not found!!\nData: ' + data + ' \n')
     return None
 
