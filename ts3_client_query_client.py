@@ -54,7 +54,7 @@ class Main(QObject):
     speakeron_event = pyqtSignal([str])
     speakeroff_event = pyqtSignal([str])
     display_text_event = pyqtSignal([str])
-    text_message_event = pyqtSignal([str,str])
+    text_message_event = pyqtSignal([str,str,str])
 
     def main(self):
 
@@ -99,8 +99,9 @@ class TelnetThread(QThread):
 
                 name = ts_replace(get_param(text, 'invokername'))
                 message = ts_replace(get_param(text, 'msg'))
+                mode = get_param(text, 'targetmode')
 
-                main.text_message_event.emit(name, message)
+                main.text_message_event.emit(name, message, mode)
 
             elif text.startswith('notifycurrentserverconnectionchanged '):
                 if update_client_list() != 0:
@@ -246,8 +247,11 @@ def display_message(text):
     ui.textBrowser_text_messages.append(text)
 
 @pyqtSlot()
-def text_message(name, text):
+def text_message(name, text, mode):
     text = html.escape(text)
+
+    if mode == '3':
+        name = '[SERVER] ' + name
 
     #linkify text
     while '[URL]' and '[/URL]' in text:
