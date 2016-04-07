@@ -248,7 +248,7 @@ def display_message(text):
 
 @pyqtSlot()
 def text_message(name, text, mode):
-    text = html.escape(text)
+    text = html.escape(text).replace('\n', '<br />')
 
     if mode == '3':
         name = '[SERVER] ' + name
