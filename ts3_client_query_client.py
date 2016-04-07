@@ -67,7 +67,7 @@ class Main(QObject):
 
         ui.lineEdit.returnPressed.connect(send_text_message)
 
-        app.exec_()
+        app.exec()
         thread.breakflag = True
 
 class TelnetThread(QThread):
@@ -458,6 +458,7 @@ def reconnect():
     except (OSError,EOFError):
         print('ERROR [reconnect]: cannot connect')
         thread.breakflag = True
+        app.quit()
 
 if __name__ == '__main__':
     thread = TelnetThread()
