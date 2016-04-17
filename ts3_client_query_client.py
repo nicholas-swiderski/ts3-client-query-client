@@ -177,7 +177,7 @@ class TelnetThread(QThread):
                 name = ts_replace(get_param(text, 'invokername'))
                 message = ts_replace(get_param(text, 'msg'))
 
-                main.display_text_event.emit('<b> !!POKE FROM ' + html.escape(name) + '!!! ' + html.escape(message) + '</b>')
+                main.display_text_event.emit('<b> !!!POKE FROM ' + html.escape(name) + '!!! ' + html.escape(message) + '</b>')
 
             elif text.startswith('notifyclientupdated '):
 
