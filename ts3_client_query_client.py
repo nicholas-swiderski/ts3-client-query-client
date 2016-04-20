@@ -136,8 +136,13 @@ class TelnetThread(QThread):
                         print(print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!'))
                 elif ctid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
+                    clients[clid][1] = ctid
                 elif clients[clid][1] == my_cid and ctid != my_cid:
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel to channel <b>' + html.escape(channels[ctid]) + '</b>')
+                    clients[clid][1] = ctid
+                elif clients[clid][2] == '0':
+                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel')
+                    clients[clid][1] = '0'
 
             elif text.startswith('notifycliententerview '):
                 ctid = get_param(text, 'ctid')
@@ -155,6 +160,7 @@ class TelnetThread(QThread):
 
                 if ctid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
+                    clients[clid][1] = ctid
 
             elif text.startswith('notifyclientleftview '):
                 cfid = get_param(text, 'cfid')
@@ -172,6 +178,7 @@ class TelnetThread(QThread):
 
                 if cfid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
+                    clients[clid][1] = '0'
 
             elif text.startswith('notifyclientpoke '):
                 name = ts_replace(get_param(text, 'invokername'))
@@ -375,7 +382,7 @@ def update_client_list():
                 name = ts_replace(get_param(entry, 'client_nickname'))
 
                 if clid.isnumeric() and cid.isnumeric():
-                    clients[clid] = (name, cid, type)
+                    clients[clid] = [name, cid, type]
                 else:
                     print('ERROR [update_client_list]: invalid entry: ' + entry)
                     return 1
