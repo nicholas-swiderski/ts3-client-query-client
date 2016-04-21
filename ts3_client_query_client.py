@@ -362,7 +362,7 @@ def get_param(data,key):
     return None
 
 def update_client_list():
-    clients = {}
+    clients.clear()
     try:
         if debug:
             print('DEBUG [update_client_list]: sending clientlist command')
