@@ -136,13 +136,19 @@ class TelnetThread(QThread):
                         print(print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!'))
                 elif ctid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
-                    clients[clid][1] = ctid
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
+                        continue
                 elif clients[clid][1] == my_cid and ctid != my_cid:
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel to channel <b>' + html.escape(channels[ctid]) + '</b>')
-                    clients[clid][1] = ctid
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
+                        continue
                 elif clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel')
-                    clients[clid][1] = '0'
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
+                        continue
 
             elif text.startswith('notifycliententerview '):
                 ctid = get_param(text, 'ctid')
@@ -160,7 +166,9 @@ class TelnetThread(QThread):
 
                 if ctid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
-                    clients[clid][1] = ctid
+                    if update_client_list() != 0:
+                        print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
+                        continue
 
             elif text.startswith('notifyclientleftview '):
                 cfid = get_param(text, 'cfid')
@@ -178,7 +186,7 @@ class TelnetThread(QThread):
 
                 if cfid == my_cid and clients[clid][2] == '0':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
-                    clients[clid][1] = '0'
+                    clients[clid][1] = 'non-existant'
 
             elif text.startswith('notifyclientpoke '):
                 name = ts_replace(get_param(text, 'invokername'))
@@ -354,7 +362,7 @@ def get_param(data,key):
     return None
 
 def update_client_list():
-    global clients
+    clients = {}
     try:
         if debug:
             print('DEBUG [update_client_list]: sending clientlist command')
@@ -406,21 +414,17 @@ def update_channel_list():
     elif data[0] == '':
         print('ERROR [update_channel_list]: id=' + data[1][0] + ' msg=' + ts_replace(data[1][1]))
 
-    found = False
-
     for line in data[0].split('\n\r'):
         if 'cid' in line and 'channel_name' in line:
-            found = True
             for entry in line.split('|'):
                 cid = get_param(entry, 'cid')
                 channel_name = ts_replace(get_param(entry, 'channel_name'))
 
                 channels[cid] = channel_name
+            return 0
 
-    if not found:
-        print('ERROR [update_channel_list]: no valid data returned for channellist')
-        return 1
-    return 0
+    print('ERROR [update_channel_list]: no valid data returned for channellist')
+    return 1
 
 
 def whoami():
@@ -438,18 +442,16 @@ def whoami():
     elif data[0] == '':
         print('ERROR [whoami]: id=' + data[1][0] + ' msg=' + ts_replace(data[1][1]))
 
-    found = False
 
     for line in data[0].split('\n\r'):
         if 'clid' in line and 'cid' in line:
             found = True
             my_clid = re.sub(r'[^0-9]', '', get_param(data[0], 'clid'))
             my_cid = re.sub(r'[^0-9]', '', get_param(data[0], 'cid'))
+            return 0
 
-    if not found:
-        print('ERROR [whoami]: no valid data returned for whoami')
-        return 1
-    return 0
+    print('ERROR [whoami]: no valid data returned for whoami')
+    return 1
 
 def reconnect():
     try:
