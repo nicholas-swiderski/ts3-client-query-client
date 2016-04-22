@@ -51,16 +51,8 @@ data_queue = []
 
 class Main(QObject):
 
-    speakeron_event = pyqtSignal([str])
-    speakeroff_event = pyqtSignal([str])
-    display_text_event = pyqtSignal([str])
-    text_message_event = pyqtSignal([str,str,str])
-
     def main(self):
 
-        self.speakeron_event.connect(append_speakers_text)
-        self.speakeroff_event.connect(remove_speakers_text)
-        self.display_text_event.connect(display_message)
         self.text_message_event.connect(text_message)
 
         thread.start()
@@ -91,9 +83,9 @@ class TelnetThread(QThread):
                         continue
 
                 if 'status=1' in text:
-                    main.speakeron_event.emit(clients[clid][0])
+                    append_speakers_text(clients[clid][0])
                 elif 'status=0' in text:
-                    main.speakeroff_event.emit(clients[clid][0])
+                    remove_speakers_text(clients[clid][0])
 
             elif text.startswith('notifytextmessage '):
 
@@ -101,7 +93,7 @@ class TelnetThread(QThread):
                 message = ts_replace(get_param(text, 'msg'))
                 mode = get_param(text, 'targetmode')
 
-                main.text_message_event.emit(name, message, mode)
+                text_message(name, message, mode)
 
             elif text.startswith('notifycurrentserverconnectionchanged '):
                 if update_client_list() != 0:
@@ -131,24 +123,15 @@ class TelnetThread(QThread):
                         continue
 
                 if clid == my_clid:
-                    main.display_text_event.emit('You moved to channel <b>' + html.escape(channels[ctid]) + '</b>')
+                    display_message('You moved to channel <b>' + html.escape(channels[ctid]) + '</b>')
                     if whoami() != 0:
                         print(print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!'))
                 elif ctid == my_cid and clients[clid][2] == '0':
-                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
-                        continue
-                elif clients[clid][1] == my_cid and ctid != my_cid:
-                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel to channel <b>' + html.escape(channels[ctid]) + '</b>')
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
-                        continue
-                elif clients[clid][2] == '0':
-                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel')
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifyclientmoved!')
-                        continue
+                    display_message('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
+                    clients[clid][1] = ctid
+                elif clients[clid][1] == my_cid and ctid != my_cid and clients[clid][2] == '0':
+                    display_message('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel to channel <b>' + html.escape(channels[ctid]) + '</b>')
+                    clients[clid][1] = ctid
 
             elif text.startswith('notifycliententerview '):
                 ctid = get_param(text, 'ctid')
@@ -165,10 +148,8 @@ class TelnetThread(QThread):
                         continue
 
                 if ctid == my_cid and clients[clid][2] == '0':
-                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
-                    if update_client_list() != 0:
-                        print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
-                        continue
+                    display_message('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
+                    clients[clid][1] = ctid
 
             elif text.startswith('notifyclientleftview '):
                 cfid = get_param(text, 'cfid')
@@ -185,14 +166,14 @@ class TelnetThread(QThread):
                         continue
 
                 if cfid == my_cid and clients[clid][2] == '0':
-                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
+                    display_message('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
                     clients[clid][1] = 'non-existant'
 
             elif text.startswith('notifyclientpoke '):
                 name = ts_replace(get_param(text, 'invokername'))
                 message = ts_replace(get_param(text, 'msg'))
 
-                main.display_text_event.emit('<b> !!!POKE FROM ' + html.escape(name) + '!!! ' + html.escape(message) + '</b>')
+                display_message('<b> !!!POKE FROM ' + html.escape(name) + '!!! ' + html.escape(message) + '</b>')
 
             elif text.startswith('notifyclientupdated '):
 
@@ -200,7 +181,7 @@ class TelnetThread(QThread):
                     new_name = ts_replace(get_param(text, 'client_nickname'))
                     clid = ts_replace(get_param(text, 'clid'))
                     if clid in clients.keys() and clients[clid][2] == '0' and clients[clid][0] != new_name:
-                        main.display_text_event.emit('<b>' + clients[clid][0] + '</b> is now known as <b>' + new_name + '</b>')
+                        display_message('<b>' + clients[clid][0] + '</b> is now known as <b>' + new_name + '</b>')
 
                 if update_client_list() != 0:
                     print('ERROR [handle_data]: error updating client list while handling notifyclientupdated!')
@@ -238,7 +219,6 @@ class TelnetThread(QThread):
 
         connection.close()
 
-@pyqtSlot()
 def append_speakers_text(text):
     if text + '\n' not in speakers_text:
         speakers_text.append(text + '\n')
@@ -246,7 +226,6 @@ def append_speakers_text(text):
         for t in speakers_text:
             ui.textBrowser_speakers.insertPlainText(t)
 
-@pyqtSlot()
 def remove_speakers_text(text):
     if text + '\n' in speakers_text:
         speakers_text.remove(text + '\n')
@@ -254,14 +233,12 @@ def remove_speakers_text(text):
         for t in speakers_text:
             ui.textBrowser_speakers.insertPlainText(t)
 
-@pyqtSlot()
 def display_message(text):
     if debug:
         print('DEBUG [display_message]: text=' + text)
 
     ui.textBrowser_text_messages.append(text)
 
-@pyqtSlot()
 def text_message(name, text, mode):
     text = html.escape(text).replace('\n', '<br />')
 
@@ -280,7 +257,6 @@ def text_message(name, text, mode):
 
     display_message('<b>' + html.escape(name) + '</b>' + ': ' + text)
 
-@pyqtSlot()
 def send_text_message():
     text = ui.lineEdit.text()
     ui.lineEdit.clear()
