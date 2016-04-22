@@ -50,14 +50,12 @@ my_cid = ''
 data_queue = []
 
 class Main(QObject):
-
     speakeron_event = pyqtSignal([str])
     speakeroff_event = pyqtSignal([str])
     display_text_event = pyqtSignal([str])
-    text_message_event = pyqtSignal([str,str,str])
+    text_message_event = pyqtSignal([str, str, str])
 
     def main(self):
-
         self.speakeron_event.connect(append_speakers_text)
         self.speakeroff_event.connect(remove_speakers_text)
         self.display_text_event.connect(display_message)
