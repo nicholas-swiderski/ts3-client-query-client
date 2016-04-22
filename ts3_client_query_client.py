@@ -276,6 +276,7 @@ def send_text_message():
         text = text.replace(fr, to)
 
     send_text = 'sendtextmessage targetmode=2 msg=' + text
+
     if debug:
         print('DEBUG [send_text_message]: send_text=' + send_text)
 
@@ -310,6 +311,7 @@ def recieve_response():
 
         #queue up any notifications ahead of the data we want
         notify_flag = False
+
         for item in notify_events:
             if last.startswith(item):
                 data_queue.append(last)
@@ -349,6 +351,7 @@ def get_param(data,key):
 
     for value in data.split(' '):
         line = value.split('=', 1)
+
         if line[0] == key:
             return line[1].strip('\n\r')
 
@@ -370,6 +373,7 @@ def update_client_list():
         connection.write('clientlist\n'.encode('ascii'))
 
     data = recieve_response()
+
     if data == (None, None):
         return 1
     elif data[0] == '':
@@ -380,6 +384,7 @@ def update_client_list():
     for line in data[0].split('\n\r'):
         if 'clid' in line and 'client_nickname' in line and 'cid' in line:
             found = True
+
             for entry in line.split('|'):
                 clid = get_param(entry, 'clid')
                 cid = get_param(entry, 'cid')
@@ -407,6 +412,7 @@ def update_channel_list():
         connection.write('channellist\n'.encode('ascii'))
 
     data = recieve_response()
+
     if data == (None, None):
         return 1
     elif data[0] == '':
@@ -435,6 +441,7 @@ def whoami():
         connection.write('whoami\n'.encode('ascii'))
 
     data = recieve_response()
+    
     if data == (None, None):
         return 1
     elif data[0] == '':
