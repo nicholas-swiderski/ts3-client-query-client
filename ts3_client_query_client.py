@@ -50,9 +50,7 @@ my_cid = ''
 data_queue = []
 
 class Main(QObject):
-
     def main(self):
-
         thread.start()
 
         ui.lineEdit.returnPressed.connect(send_text_message)
@@ -61,14 +59,10 @@ class Main(QObject):
         thread.breakflag = True
 
 class TelnetThread(QThread):
-
     breakflag = False
 
     @staticmethod
     def handle_data():
-
-        global my_cid,my_clid
-
         while len(data_queue) > 0:
             text = data_queue.pop(0)
 
@@ -156,7 +150,7 @@ class TelnetThread(QThread):
                 cfid = get_param(text, 'cfid')
                 clid = get_param(text, 'clid')
 
-                if (my_cid == '' or my_clid == ''):
+                if my_cid == '' or my_clid == '':
                     if whoami() != 0:
                         print('ERROR [handle_data]: error updating whoami while handling notifyclientleftview!')
                         continue
@@ -191,7 +185,6 @@ class TelnetThread(QThread):
                     print('ERROR [handle_data]: error updating channel list while handling notifychanneledited!')
 
     def run(self):
-
         reconnect()
 
         if update_client_list() != 0:
@@ -209,7 +202,7 @@ class TelnetThread(QThread):
 
             try:
                 raw_data = connection.read_until(b'\n\r').decode()
-            except (OSError,EOFError):
+            except (OSError, EOFError):
                 reconnect()
                 continue
 
@@ -221,7 +214,6 @@ class TelnetThread(QThread):
         connection.close()
 
 def append_speakers_text(text):
-
     if text + '\n' not in speakers_text:
         speakers_text.append(text + '\n')
         ui.textBrowser_speakers.setPlainText('')
@@ -230,7 +222,6 @@ def append_speakers_text(text):
             ui.textBrowser_speakers.insertPlainText(t)
 
 def remove_speakers_text(text):
-
     if text + '\n' in speakers_text:
         speakers_text.remove(text + '\n')
         ui.textBrowser_speakers.setPlainText('')
@@ -239,14 +230,12 @@ def remove_speakers_text(text):
             ui.textBrowser_speakers.insertPlainText(t)
 
 def display_message(text):
-
     if debug:
         print('DEBUG [display_message]: text=' + text)
 
     ui.textBrowser_text_messages.append(text)
 
 def text_message(name, text, mode):
-
     text = html.escape(text).replace('\n', '<br />')
 
     if mode == '3':
@@ -264,12 +253,11 @@ def text_message(name, text, mode):
     display_message('<b>' + html.escape(name) + '</b>' + ': ' + text)
 
 def send_text_message():
-
     text = ui.lineEdit.text()
     ui.lineEdit.clear()
 
     #matches a lot of non-valid URIs but we're not the URI police so whatever
-    text = re.sub(r'(?P<uri>(http|https|ftp):\/\/([^ ]+?\.[^ ]+?)+?)(?P<end> |$|\n)', r'[URL]\g<uri>[/URL]\g<end>',text)
+    text = re.sub(r'(?P<uri>(http|https|ftp):\/\/([^ ]+?\.[^ ]+?)+?)(?P<end> |$|\n)', r'[URL]\g<uri>[/URL]\g<end>', text)
 
     #reversed replace
     for fr, to in replace_list:
@@ -282,26 +270,24 @@ def send_text_message():
 
     try:
         connection.write((send_text + '\n').encode('ascii'))
-    except (OSError,EOFError):
+    except (OSError, EOFError):
         reconnect()
         connection.write((send_text + '\n').encode('ascii'))
 
-
 def recieve_response():
-
     last = ''
     recieve_data = ''
 
     while not last.startswith('error '):
         try:
-            last = connection.read_until(b'\n\r',1).decode()
+            last = connection.read_until(b'\n\r', 1).decode()
 
             if debug:
                 print("DEBUG [recieve_response]: " + last)
 
-        except (OSError,EOFError):
+        except (OSError, EOFError):
             reconnect()
-            last = connection.read_until(b'\n\r',1).decode()
+            last = connection.read_until(b'\n\r', 1).decode()
 
         #this should only happen on timeout
         if last == '':
@@ -328,16 +314,14 @@ def recieve_response():
 
     return (recieve_data, '')
 
-
 def ts_replace(data):
-
     if debug:
         print('DEBUG [ts_place]: before=' + data)
 
     for to, fr in reversed(replace_list):
         if fr != r'\\':
-            while re.search(r'([^\\]|^)'+re.escape(fr), data):
-                data = re.sub(r'([^\\]|^)'+re.escape(fr), r'\1'+to, data)
+            while re.search(r'([^\\]|^)' + re.escape(fr), data):
+                data = re.sub(r'([^\\]|^)' + re.escape(fr), r'\1' + to, data)
 
         else:
             data = data.replace(fr, to)
@@ -347,8 +331,7 @@ def ts_replace(data):
 
     return data
 
-def get_param(data,key):
-
+def get_param(data, key):
     for value in data.split(' '):
         line = value.split('=', 1)
 
@@ -360,7 +343,6 @@ def get_param(data,key):
     return None
 
 def update_client_list():
-
     clients.clear()
     try:
         if debug:
@@ -368,7 +350,7 @@ def update_client_list():
 
         connection.write('clientlist\n'.encode('ascii'))
 
-    except (OSError,EOFError):
+    except (OSError, EOFError):
         reconnect()
         connection.write('clientlist\n'.encode('ascii'))
 
@@ -404,10 +386,9 @@ def update_client_list():
     return 0
 
 def update_channel_list():
-
     try:
         connection.write('channellist\n'.encode('ascii'))
-    except (OSError,EOFError):
+    except (OSError, EOFError):
         reconnect()
         connection.write('channellist\n'.encode('ascii'))
 
@@ -432,21 +413,19 @@ def update_channel_list():
     return 1
 
 def whoami():
-
     try:
         connection.write('whoami\n'.encode('ascii'))
 
-    except (OSError,EOFError):
+    except (OSError, EOFError):
         reconnect()
         connection.write('whoami\n'.encode('ascii'))
 
     data = recieve_response()
-    
+
     if data == (None, None):
         return 1
     elif data[0] == '':
         print('ERROR [whoami]: id=' + data[1][0] + ' msg=' + ts_replace(data[1][1]))
-
 
     for line in data[0].split('\n\r'):
         if 'clid' in line and 'cid' in line:
@@ -460,21 +439,20 @@ def whoami():
     return 1
 
 def reconnect():
-
     try:
-        connection.open(target_ip_addr,target_port,10)
+        connection.open(target_ip_addr, target_port, 10)
         connection.read_until(b'selected schandlerid=1\n\r', 1)
 
         for event in notify_events:
             connection.write(('clientnotifyregister schandlerid=0 event=' + event + '\n').encode('ascii'))
             response = recieve_response()
 
-            if response == (None,None):
+            if response == (None, None):
                 break
             elif response[0] == '':
                 print('ERROR [reconnect]: id=' + response[1][0] + ' msg=' + response[1][1])
 
-    except (OSError,EOFError):
+    except (OSError, EOFError):
         print('ERROR [reconnect]: cannot connect')
         thread.breakflag = True
         app.quit()
