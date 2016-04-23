@@ -50,6 +50,7 @@ my_cid = ''
 data_queue = []
 
 class Main(QObject):
+    #these signals are necessary to access objects in the UI thread from another thread, as far as I can tell
     speakeron_event = pyqtSignal([str])
     speakeroff_event = pyqtSignal([str])
     display_text_event = pyqtSignal([str])
@@ -74,6 +75,7 @@ class TelnetThread(QThread):
     @staticmethod
     def handle_data():
 
+        #these globals are necessary
         global my_cid, my_clid
 
         while len(data_queue) > 0:
