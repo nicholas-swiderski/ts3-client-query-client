@@ -193,7 +193,7 @@ class TelnetThread(QThread):
                     new_name = ts_replace(get_param(text, 'client_nickname'))
                     clid = ts_replace(get_param(text, 'clid'))
 
-                    if clid in clients.keys() and clients[clid][2] != '3' and clients[clid][0] != new_name:
+                    if clid in clients.keys() and clients[clid][2] != '3' and clients[clid][0] != new_name and clients[clid][1] == my_cid:
                         main.display_text_event.emit('<b>' + clients[clid][0] + '</b> is now known as <b>' + new_name + '</b>')
 
                 if update_client_list() != 0:
