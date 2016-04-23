@@ -73,6 +73,9 @@ class TelnetThread(QThread):
 
     @staticmethod
     def handle_data():
+
+        global my_cid, my_clid
+
         while len(data_queue) > 0:
             text = data_queue.pop(0)
 
@@ -131,11 +134,11 @@ class TelnetThread(QThread):
                     if whoami() != 0:
                         print(print('ERROR [handle_data]: error updating whoami while handling notifyclientmoved!'))
 
-                elif ctid == my_cid and clients[clid][2] == '0':
+                elif ctid == my_cid and clients[clid][2] != '3':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
                     clients[clid][1] = ctid
 
-                elif clients[clid][1] == my_cid and ctid != my_cid and clients[clid][2] == '0':
+                elif clients[clid][1] == my_cid and ctid != my_cid and clients[clid][2] != '3':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b> has left your channel to channel <b>' + html.escape(channels[ctid]) + '</b>')
                     clients[clid][1] = ctid
 
@@ -153,13 +156,14 @@ class TelnetThread(QThread):
                         print('ERROR [handle_data]: error updating client list while handling notifycliententerview!')
                         continue
 
-                if ctid == my_cid and clients[clid][2] == '0':
+                if ctid == my_cid and clients[clid][2] != '3':
                     main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has joined your channel')
                     clients[clid][1] = ctid
 
             elif text.startswith('notifyclientleftview '):
                 cfid = get_param(text, 'cfid')
                 clid = get_param(text, 'clid')
+                reasonid = get_param(text, 'reasonid')
 
                 if my_cid == '' or my_clid == '':
                     if whoami() != 0:
@@ -171,8 +175,11 @@ class TelnetThread(QThread):
                         print('ERROR [handle_data]: error updating client list while handling notifyclientleftview!')
                         continue
 
-                if cfid == my_cid and clients[clid][2] == '0':
-                    main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
+                if cfid == my_cid and clients[clid][2] != '3':
+                    if reasonid == '8':
+                        main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' disconnected')
+                    else:
+                        main.display_text_event.emit('<b>' + html.escape(clients[clid][0]) + '</b>' + ' has left your channel')
                     clients[clid][1] = 'non-existant'
 
             elif text.startswith('notifyclientpoke '):
@@ -186,7 +193,7 @@ class TelnetThread(QThread):
                     new_name = ts_replace(get_param(text, 'client_nickname'))
                     clid = ts_replace(get_param(text, 'clid'))
 
-                    if clid in clients.keys() and clients[clid][2] == '0' and clients[clid][0] != new_name:
+                    if clid in clients.keys() and clients[clid][2] != '3' and clients[clid][0] != new_name:
                         main.display_text_event.emit('<b>' + clients[clid][0] + '</b> is now known as <b>' + new_name + '</b>')
 
                 if update_client_list() != 0:
@@ -361,7 +368,9 @@ def get_param(data, key):
     return None
 
 def update_client_list():
+    global clients
     clients.clear()
+
     try:
         if debug:
             print('DEBUG [update_client_list]: sending clientlist command')
@@ -404,6 +413,8 @@ def update_client_list():
     return 0
 
 def update_channel_list():
+    global channels
+
     try:
         connection.write('channellist\n'.encode('ascii'))
     except (OSError, EOFError):
@@ -431,6 +442,8 @@ def update_channel_list():
     return 1
 
 def whoami():
+    global my_cid, my_clid
+
     try:
         connection.write('whoami\n'.encode('ascii'))
 
